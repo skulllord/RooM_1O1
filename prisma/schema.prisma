@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum MachineType {
+  PS5
+}
+
+enum MachineStatus {
+  AVAILABLE
+  BOOKED
+  IN_USE
+  MAINTENANCE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      UserRole @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer  Customer?
+  staffLogs StaffActionLog[]
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  userId      String?  @unique
+  name        String
+  email       String?  @unique
+  phoneNumber String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User?     @relation(fields: [userId], references: [id])
+  bookings Booking[]
+  sessions Session[]
+
+  @@index([phoneNumber])
+}
+
+model Machine {
+  id         String        @id @default(uuid())
+  name       String        @unique
+  type       MachineType   @default(PS5)
+  status     MachineStatus @default(AVAILABLE)
+  hourlyRate Decimal       @db.Decimal(10, 2)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  bookings Booking[]
+  sessions Session[]
+}
+
+model Booking {
+  id         String        @id @default(uuid())
+  machineId  String
+  customerId String
+  status     BookingStatus @default(PENDING)
+  startTime  DateTime
+  endTime    DateTime
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  machine  Machine  @relation(fields: [machineId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  payment  BookingPayment?
+
+  @@index([machineId, startTime, endTime])
+  @@index([customerId, createdAt])
+}
+
+model BookingPayment {
+  id                String        @id @default(uuid())
+  bookingId         String        @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  provider          String        @default("MOCK_RAZORPAY")
+  providerOrderId   String        @unique
+  providerPaymentId String?
+  providerSignature String?
+  rawPayload        Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model Session {
+  id              String        @id @default(uuid())
+  machineId       String
+  customerId      String
+  status          SessionStatus @default(ACTIVE)
+  startTime       DateTime      @default(now())
+  endTime         DateTime?
+  durationMinutes Int?
+  hourlyRate      Decimal       @db.Decimal(10, 2)
+  totalAmount     Decimal?      @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  machine    Machine     @relation(fields: [machineId], references: [id])
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  invoice    Invoice?
+  foodOrders FoodOrder[]
+
+  @@index([machineId, status])
+  @@index([customerId, status])
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  sessionId   String   @unique
+  totalAmount Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id])
+  payment Payment?
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  invoiceId         String        @unique
+  amount            Decimal       @db.Decimal(10, 2)
+  status            PaymentStatus @default(PENDING)
+  provider          String?
+  providerReference String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model FoodItem {
+  id          String   @id @default(uuid())
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems FoodOrderItem[]
+}
+
+model FoodOrder {
+  id         String   @id @default(uuid())
+  sessionId  String
+  totalPrice Decimal  @db.Decimal(10, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  session Session         @relation(fields: [sessionId], references: [id])
+  items   FoodOrderItem[]
+}
+
+model FoodOrderItem {
+  id          String @id @default(uuid())
+  foodOrderId String
+  foodItemId  String
+  quantity    Int
+
+  order FoodOrder @relation(fields: [foodOrderId], references: [id])
+  item  FoodItem  @relation(fields: [foodItemId], references: [id])
+}
+
+model StaffActionLog {
+  id        String   @id @default(uuid())
+  staffId   String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  staff User @relation(fields: [staffId], references: [id])
+}

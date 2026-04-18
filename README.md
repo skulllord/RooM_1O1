@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gaming Cafe
 
-## Getting Started
+A Next.js app for a gaming cafe customer site and protected staff dashboard.
 
-First, run the development server:
+## What changed
+
+- Added protected admin login with email/password auth.
+- Locked `/dashboard` behind middleware and server-side role checks.
+- Removed the admin dependency on Supabase magic links for local login.
+- Cleaned customer/admin UI issues so lint passes.
+- Hardened the Prisma schema for money fields and linked auth users to customers.
+
+## Required environment variables
+
+Copy `.env.example` to `.env` and fill in:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+DATABASE_URL=
+SHADOW_DATABASE_URL=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+ADMIN_SESSION_SECRET=
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Admin sign-in uses the email and password from `.env`. The session is stored in a signed, HTTP-only cookie using `ADMIN_SESSION_SECRET`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For production, change `ADMIN_PASSWORD` and set `ADMIN_SESSION_SECRET` to a long random value before deploying.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local development
 
-## Learn More
+```bash
+npx prisma dev -d -n gaming-cafe
+npm run db:setup
+npm install
+npm run lint
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open [http://localhost:3000](http://localhost:3000) for the customer site and [http://localhost:3000/login](http://localhost:3000/login) for admin sign-in.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For local development, this project uses a Prisma dev Postgres server plus `npm run db:setup` to provision the schema.
 
-## Deploy on Vercel
+For production, do not use the local Prisma dev database. Point `DATABASE_URL` to a real managed Postgres instance such as Supabase Postgres, Neon, Railway, or Render Postgres, then apply proper Prisma migrations in CI/CD.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Production checklist
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Change the default admin password and use a strong `ADMIN_SESSION_SECRET`.
+- Replace the local `DATABASE_URL` with a managed Postgres database.
+- Create and run Prisma migrations against production instead of using `db:setup`.
+- Add payment provider integration before enabling checkout.
