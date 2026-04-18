@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getBookingDetails } from '@/lib/bookings'
 import { getBookingPayment } from '@/lib/payments'
 import { formatBookingDate, formatCurrency } from '@/lib/utils'
-import { completeMockPayment, rejectMockPayment } from './actions'
+import { RazorpayCheckoutButton } from '@/components/booking/razorpay-checkout-button'
 
 type PaymentPageProps = {
   searchParams?: Promise<{
@@ -72,8 +72,7 @@ export default async function BookingPaymentPage({ searchParams }: PaymentPagePr
               Complete UPI payment to confirm your PS5 slot.
             </CardTitle>
             <p className="max-w-2xl text-muted-foreground">
-              This is a safe mock checkout for local testing. In the final build, this screen can
-              be replaced by Razorpay Checkout while keeping the same booking status flow.
+              This is a safe and secure payment gateway powered by Razorpay. Please do not refresh the page while the transaction is processing.
             </p>
           </div>
         </CardHeader>
@@ -121,26 +120,19 @@ export default async function BookingPaymentPage({ searchParams }: PaymentPagePr
               <div className="flex items-start gap-3">
                 <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-300" />
                 <p className="text-sm text-muted-foreground">
-                  Mock success acts like a verified Razorpay webhook. It marks payment as paid and
-                  confirms the booking on the server.
+                  Your payment is processed through a securely encrypted gateway. We do not store your payment credentials on our servers.
                 </p>
               </div>
             </div>
 
-            <form action={completeMockPayment}>
-              <input name="bookingId" type="hidden" value={booking.id} />
-              <Button className="h-13 w-full rounded-2xl text-base font-bold" type="submit">
-                <CheckCircle2 className="mr-2 h-5 w-5" />
-                Mock Pay with UPI
-              </Button>
-            </form>
-
-            <form action={rejectMockPayment}>
-              <input name="bookingId" type="hidden" value={booking.id} />
-              <Button className="w-full rounded-2xl" type="submit" variant="outline">
-                Simulate failed payment
-              </Button>
-            </form>
+            <RazorpayCheckoutButton
+              bookingId={booking.id}
+              amount={amount}
+              providerOrderId={payment.providerOrderId}
+              customerName={booking.customer.name}
+              customerEmail={booking.customer.email}
+              customerPhone={booking.customer.phoneNumber}
+            />
           </div>
         </CardContent>
       </Card>

@@ -4,17 +4,19 @@ import { redirect } from 'next/navigation'
 
 import { setCustomerSession } from '@/lib/customer-session'
 import { isDatabaseUnavailable } from '@/lib/bookings'
-import { confirmMockRazorpayPayment, failMockRazorpayPayment } from '@/lib/payments'
+import { confirmRazorpayPayment, failRazorpayPayment } from '@/lib/payments'
 
-export async function completeMockPayment(formData: FormData) {
+export async function completeRazorpayPayment(formData: FormData) {
   const bookingId = String(formData.get('bookingId') ?? '')
+  const providerPaymentId = String(formData.get('razorpay_payment_id') ?? '')
+  const providerSignature = String(formData.get('razorpay_signature') ?? '')
 
-  if (!bookingId) {
+  if (!bookingId || !providerPaymentId || !providerSignature) {
     redirect('/book')
   }
 
   try {
-    const booking = await confirmMockRazorpayPayment(bookingId)
+    const booking = await confirmRazorpayPayment(bookingId, providerPaymentId, providerSignature)
     await setCustomerSession(booking.customer.id)
   } catch (error) {
     if (isDatabaseUnavailable(error)) {
@@ -27,15 +29,16 @@ export async function completeMockPayment(formData: FormData) {
   redirect(`/book/confirmation?booking=${bookingId}`)
 }
 
-export async function rejectMockPayment(formData: FormData) {
+export async function rejectRazorpayPayment(formData: FormData) {
   const bookingId = String(formData.get('bookingId') ?? '')
+  const rawPayload = formData.get('razorpay_error') ?? null
 
   if (!bookingId) {
     redirect('/book')
   }
 
   try {
-    await failMockRazorpayPayment(bookingId)
+    await failRazorpayPayment(bookingId, rawPayload)
   } catch {
     redirect(`/book/payment?booking=${bookingId}&error=payment-failed`)
   }

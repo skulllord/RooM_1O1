@@ -1,10 +1,19 @@
 import { randomUUID } from 'crypto'
+import crypto from 'crypto'
+import Razorpay from 'razorpay'
 
 import { BookingStatus, PaymentStatus, Prisma } from '@prisma/client'
 
 import prisma from '@/lib/prisma'
 
-export const PAYMENT_PROVIDER = 'MOCK_RAZORPAY'
+export const PAYMENT_PROVIDER = 'RAZORPAY'
+
+const getRazorpayInstance = () => {
+  return new Razorpay({
+    key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+  })
+}
 
 export type BookingPaymentRecord = {
   id: string
@@ -56,7 +65,7 @@ export async function ensureBookingPaymentSchema() {
   return bookingPaymentSchemaReady
 }
 
-export async function createMockRazorpayOrder({
+export async function createRazorpayOrder({
   bookingId,
   amount,
   db = prisma,
@@ -69,8 +78,15 @@ export async function createMockRazorpayOrder({
     await ensureBookingPaymentSchema()
   }
 
+  const razorpay = getRazorpayInstance()
+  const rzpOrder = await razorpay.orders.create({
+    amount: Math.round(amount * 100), // Amount in paise
+    currency: 'INR',
+    receipt: bookingId.slice(0, 40),
+  })
+
   const paymentId = randomUUID()
-  const providerOrderId = `order_mock_${randomUUID().replace(/-/g, '').slice(0, 18)}`
+  const providerOrderId = (rzpOrder as any).id as string
 
   const rows = await db.$queryRaw<BookingPaymentRecord[]>`
     INSERT INTO "BookingPayment" (
@@ -119,11 +135,8 @@ export async function getBookingPayment(bookingId: string) {
   return rows[0] ?? null
 }
 
-export async function confirmMockRazorpayPayment(bookingId: string) {
+export async function confirmRazorpayPayment(bookingId: string, providerPaymentId: string, providerSignature: string) {
   await ensureBookingPaymentSchema()
-
-  const providerPaymentId = `pay_mock_${randomUUID().replace(/-/g, '').slice(0, 18)}`
-  const providerSignature = `sig_mock_${randomUUID().replace(/-/g, '').slice(0, 24)}`
 
   return prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
@@ -142,6 +155,22 @@ export async function confirmMockRazorpayPayment(bookingId: string) {
       throw new Error('This booking is already closed.')
     }
 
+    const payment = await tx.$queryRaw<{ providerOrderId: string }[]>`
+      SELECT "providerOrderId" FROM "BookingPayment" WHERE "bookingId" = ${bookingId} LIMIT 1
+    `
+    const providerOrderId = payment[0]?.providerOrderId
+
+    if (!providerOrderId) throw new Error('Payment record not found.')
+
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .update(`${providerOrderId}|${providerPaymentId}`)
+      .digest('hex')
+
+    if (expectedSignature !== providerSignature) {
+      throw new Error('Invalid payment signature')
+    }
+
     await tx.$executeRaw`
       UPDATE "BookingPayment"
       SET
@@ -149,7 +178,6 @@ export async function confirmMockRazorpayPayment(bookingId: string) {
         "providerPaymentId" = ${providerPaymentId},
         "providerSignature" = ${providerSignature},
         "rawPayload" = ${JSON.stringify({
-          mock: true,
           event: 'payment.captured',
           providerPaymentId,
           paidAt: new Date().toISOString(),
@@ -169,7 +197,7 @@ export async function confirmMockRazorpayPayment(bookingId: string) {
   })
 }
 
-export async function failMockRazorpayPayment(bookingId: string) {
+export async function failRazorpayPayment(bookingId: string, rawPayload: any = null) {
   await ensureBookingPaymentSchema()
 
   await prisma.$transaction(async (tx) => {
@@ -178,8 +206,8 @@ export async function failMockRazorpayPayment(bookingId: string) {
       SET
         status = CAST(${PaymentStatus.FAILED} AS "PaymentStatus"),
         "rawPayload" = ${JSON.stringify({
-          mock: true,
           event: 'payment.failed',
+          payload: rawPayload,
           failedAt: new Date().toISOString(),
         })}::jsonb,
         "updatedAt" = CURRENT_TIMESTAMP

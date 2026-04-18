@@ -15,7 +15,7 @@ import {
   formatCurrency,
   parseLocalDateTime,
 } from '@/lib/utils'
-import { createMockRazorpayOrder, ensureBookingPaymentSchema } from '@/lib/payments'
+import { createRazorpayOrder, ensureBookingPaymentSchema } from '@/lib/payments'
 
 export type BookingActionState = {
   error?: string
@@ -151,7 +151,7 @@ export async function createBooking(
           },
         })
 
-        await createMockRazorpayOrder({
+        await createRazorpayOrder({
           bookingId: booking.id,
           amount: totalAmount,
           db: tx,
