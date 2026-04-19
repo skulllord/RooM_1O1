@@ -67,8 +67,8 @@ export async function createBooking(
     return { error: 'Bookings must be scheduled for a future time.' }
   }
 
-  if (startTime.getHours() < 9) {
-    return { error: 'The gaming cafe is closed at this time. Bookings are available from 9:00 to 24:00.' }
+  if (startTime.getHours() < 10) {
+    return { error: 'The gaming cafe is closed at this time. Bookings are available from 10:00 AM to 12:00 AM.' }
   }
 
   const endTime = new Date(startTime.getTime() + hoursRaw * 60 * 60 * 1000)

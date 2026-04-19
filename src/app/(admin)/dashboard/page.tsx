@@ -93,6 +93,7 @@ export default async function Dashboard() {
         prisma.customer.count(),
         prisma.booking.count({
           where: {
+            status: { not: BookingStatus.PENDING },
             startTime: {
               gte: startOfToday(),
               lt: startOfTomorrow(),
@@ -105,6 +106,7 @@ export default async function Dashboard() {
             machine: true,
           },
           where: {
+            status: { not: BookingStatus.PENDING },
             startTime: {
               gte: startOfToday(),
               lt: startOfTomorrow(),
