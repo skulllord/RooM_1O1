@@ -67,8 +67,8 @@ export async function createBooking(
     return { error: 'Bookings must be scheduled for a future time.' }
   }
 
-  if (startTime.getHours() < 10) {
-    return { error: 'The gaming cafe is closed at this time. Bookings are available from 10:00 AM to 12:00 AM.' }
+  if (startTime.getHours() < 9) {
+    return { error: 'The gaming cafe is closed at this time. Bookings are available from 9:00 to 24:00.' }
   }
 
   const endTime = new Date(startTime.getTime() + hoursRaw * 60 * 60 * 1000)
@@ -77,7 +77,7 @@ export async function createBooking(
   midnight.setHours(24, 0, 0, 0)
   
   if (endTime.getTime() > midnight.getTime()) {
-    return { error: 'Your booking exceeds our closing time of 12:00 AM (midnight). Please reduce the hours or pick an earlier time.' }
+    return { error: 'Your booking exceeds our closing time of 24:00. Please reduce the hours or pick an earlier time.' }
   }
 
   const totalAmount = machineConfig.hourlyRate * hoursRaw

@@ -64,7 +64,7 @@ export function BookingForm({ machineSlug, machineName, hourlyRate }: BookingFor
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="startDateTime">Booking start time (10 AM to 12 AM)</Label>
+          <Label htmlFor="startDateTime">Booking start time (9:00 to 24:00)</Label>
           <Input
             id="startDateTime"
             name="startDateTime"
