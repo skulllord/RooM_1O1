@@ -139,7 +139,7 @@ function SubmitButton({ totalAmount }: { totalAmount: number }) {
       type="submit"
       disabled={pending}
     >
-      {pending ? 'Creating payment order...' : `UPI payment ${formatCurrency(totalAmount)}`}
+      {pending ? 'Creating payment order...' : `Continue to payment ${formatCurrency(totalAmount)}`}
     </Button>
   )
 }
